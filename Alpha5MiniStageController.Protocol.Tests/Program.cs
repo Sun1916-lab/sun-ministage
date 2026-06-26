@@ -4,16 +4,16 @@ var tests = new (string Name, Action Body)[]
 {
     ("CRC16 Modbus known vector", CrcKnownVector),
     ("Unit conversions", UnitConversions),
-    ("ReadCurrentPosition hex", ReadCurrentPositionHex),
-    ("ServoOn hex", ServoOnHex),
-    ("ServoOff hex", ServoOffHex),
-    ("Origin hex", OriginHex),
-    ("PositionReset hex", PositionResetHex),
-    ("Stop hex", StopHex),
-    ("MoveRelative hex", MoveRelativeHex),
-    ("JogLeftStart hex", JogLeftStartHex),
-    ("JogRightStart hex", JogRightStartHex),
-    ("JogStop hex", JogStopHex)
+    ("MFC ReadCurrentPosition hex", MfcReadCurrentPositionHex),
+    ("MFC ServoOn hex", MfcServoOnHex),
+    ("MFC ServoOff hex", MfcServoOffHex),
+    ("MFC Origin hex", MfcOriginHex),
+    ("MFC PositionReset sequence hex", MfcPositionResetSequenceHex),
+    ("MFC Stop sequence hex", MfcStopSequenceHex),
+    ("MFC PositionMove sequence hex", MfcPositionMoveSequenceHex),
+    ("MFC JogLeftStart sequence hex", MfcJogLeftStartSequenceHex),
+    ("MFC JogRightStart sequence hex", MfcJogRightStartSequenceHex),
+    ("MFC JogStop hex", MfcJogStopHex)
 };
 
 foreach (var test in tests)
@@ -37,64 +37,102 @@ static void UnitConversions()
     AssertNear(30.0, StageUnitConverter.MmPerSecToRpm(10.0), 0.000_001, "MmPerSecToRpm");
 }
 
-static void ReadCurrentPositionHex()
+static void MfcReadCurrentPositionHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("010300000002C40B", Alpha5Protocol.ToHexString(protocol.ReadCurrentPosition()), "ReadCurrentPosition hex");
+    AssertEqual("01031006000220CA", Alpha5Protocol.ToHexString(protocol.ReadCurrentPosition()), "MFC ReadCurrentPosition hex");
 }
 
-static void ServoOnHex()
+static void MfcServoOnHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01050001FF00DDFA", Alpha5Protocol.ToHexString(protocol.ServoOn()), "ServoOn hex");
+    AssertEqual("0110000000020400000001326F", Alpha5Protocol.ToHexString(protocol.ServoOn()), "MFC ServoOn hex");
 }
 
-static void ServoOffHex()
+static void MfcServoOffHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("0105000100009C0A", Alpha5Protocol.ToHexString(protocol.ServoOff()), "ServoOff hex");
+    AssertEqual("0110000000020400000000F3AF", Alpha5Protocol.ToHexString(protocol.ServoOff()), "MFC ServoOff hex");
 }
 
-static void OriginHex()
+static void MfcOriginHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01050002FF002DFA", Alpha5Protocol.ToHexString(protocol.Origin()), "Origin hex");
+    AssertEqual("011000000002040000001133A3", Alpha5Protocol.ToHexString(protocol.Origin(servoOn: true)), "MFC Origin servo-on hex");
+    AssertEqual("0110000000020400000010F263", Alpha5Protocol.ToHexString(protocol.Origin(servoOn: false)), "MFC Origin servo-off hex");
 }
 
-static void PositionResetHex()
+static void MfcPositionResetSequenceHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01050003FF007C3A", Alpha5Protocol.ToHexString(protocol.PositionReset()), "PositionReset hex");
+    AssertEqual(
+        "0110000000020400000041339F|0110000000020400000001326F",
+        ToHexSequence(protocol.PositionResetSequence(servoOn: true)),
+        "MFC PositionReset servo-on sequence hex");
+    AssertEqual(
+        "0110000000020400000040F25F|0110000000020400000000F3AF",
+        ToHexSequence(protocol.PositionResetSequence(servoOn: false)),
+        "MFC PositionReset servo-off sequence hex");
 }
 
-static void StopHex()
+static void MfcStopSequenceHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01050004FF00CDFB", Alpha5Protocol.ToHexString(protocol.Stop()), "Stop hex");
+    AssertEqual(
+        "011000000002040000002133B7|011000000002040000008133CF",
+        ToHexSequence(protocol.StopSequence(servoOn: true)),
+        "MFC Stop servo-on sequence hex");
+    AssertEqual(
+        "0110000000020400000020F277|0110000000020400000080F20F",
+        ToHexSequence(protocol.StopSequence(servoOn: false)),
+        "MFC Stop servo-off sequence hex");
 }
 
-static void MoveRelativeHex()
+static void MfcPositionMoveSequenceHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("0110010000040800001388001E0001F781", Alpha5Protocol.ToHexString(protocol.MoveRelative(5.0, 10.0)), "MoveRelative hex");
+    AssertEqual(
+        "01105100000A14010000000000C35000002710000003E8000003E805EF|011000000002040000000933A9|0110000000020400000001326F",
+        ToHexSequence(protocol.PositionMoveSequence(positionMm: 50.0, speed: 100.0, acceleration: 100.0, deceleration: 100.0, servoOn: true)),
+        "MFC PositionMove default sequence hex");
 }
 
-static void JogLeftStartHex()
+static void MfcJogLeftStartSequenceHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01100110000204001E00021EF4", Alpha5Protocol.ToHexString(protocol.JogLeftStart(10.0)), "JogLeftStart hex");
+    AssertEqual(
+        "0110402800020400002710DBEE|0110000000020400000105323C",
+        ToHexSequence(protocol.JogLeftStartSequence(speed: 100.0, servoOn: true)),
+        "MFC JogLeftStart servo-on sequence hex");
+    AssertEqual(
+        "0110402800020400002710DBEE|0110000000020400000104F3FC",
+        ToHexSequence(protocol.JogLeftStartSequence(speed: 100.0, servoOn: false)),
+        "MFC JogLeftStart servo-off sequence hex");
 }
 
-static void JogRightStartHex()
+static void MfcJogRightStartSequenceHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01100110000204001E0003DF34", Alpha5Protocol.ToHexString(protocol.JogRightStart(10.0)), "JogRightStart hex");
+    AssertEqual(
+        "0110402800020400002710DBEE|0110000000020400000103B23E",
+        ToHexSequence(protocol.JogRightStartSequence(speed: 100.0, servoOn: true)),
+        "MFC JogRightStart servo-on sequence hex");
+    AssertEqual(
+        "0110402800020400002710DBEE|011000000002040000010273FE",
+        ToHexSequence(protocol.JogRightStartSequence(speed: 100.0, servoOn: false)),
+        "MFC JogRightStart servo-off sequence hex");
 }
 
-static void JogStopHex()
+static void MfcJogStopHex()
 {
     var protocol = new Alpha5Protocol();
-    AssertEqual("01050005FF009C3B", Alpha5Protocol.ToHexString(protocol.JogStop()), "JogStop hex");
+    AssertEqual("011000000002040000002133B7", Alpha5Protocol.ToHexString(protocol.JogStop(servoOn: true)), "MFC JogStop servo-on hex");
+    AssertEqual("0110000000020400000020F277", Alpha5Protocol.ToHexString(protocol.JogStop(servoOn: false)), "MFC JogStop servo-off hex");
+}
+
+static string ToHexSequence(IEnumerable<byte[]> frames)
+{
+    return string.Join("|", frames.Select(frame => Alpha5Protocol.ToHexString(frame)));
 }
 
 static void AssertEqual<T>(T expected, T actual, string name)
